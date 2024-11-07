@@ -1,0 +1,39 @@
+name: E2E Tests
+
+on:
+  workflow_call:
+    inputs:
+      public_ip:
+        description: The IP of the deployed service
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      public_ip:
+        description: The IP of the deployed service
+        required: true
+        type: string
+
+jobs:
+  run-tests:
+    name: Run E2E tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Run tests & write test output
+        id: run-test
+        run: curl http://${{inputs.public_ip || github.event.inputs.public_ip}}:8080/testing/run-tests > test_report.json
+
+      - name: Publish report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test_report.json
+          path: ./test_report.json
+
+      - name: Check if tests successful
+        run: |
+          jq -e '.numFailedTests == 0' test_report.json >/dev/null || exit 1

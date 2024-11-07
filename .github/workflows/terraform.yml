@@ -1,0 +1,120 @@
+name: Deployment and E2E Testing
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to: dev, staging, or prod"
+        required: true
+        default: "staging"
+        type: "choice"
+        options: ["dev", "staging", "prod"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - data-collection
+          - data-preprocessing
+          - data-retrieval
+          - data-analytics
+          - append-history
+          - suburb-finder
+          - data-fetch-historical
+          - user-data
+          - notification
+          - calculator
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm i pnpm@latest -g
+
+      - name: Install modules
+        run: pnpm i --no-frozen-lockfile
+        working-directory: packages/${{ matrix.package }}
+
+      - name: Build
+        run: pnpm build
+        working-directory: packages/${{ matrix.package }}
+
+      - name: Move build one layer deeper
+        run: |
+          mkdir packages/${{ matrix.package }}/dist/dist
+          find packages/${{matrix.package}}/dist -mindepth 1 -maxdepth 1 ! -name "dist" -exec mv -t packages/${{matrix.package}}/dist/dist {} +
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.package}}
+          path: ./packages/${{ matrix.package }}/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/terraform
+        shell: bash
+    env:
+      AWS_ACCESS_KEY_ID: ${{secrets.EXEC_AWS_ACCESS_KEY_ID}}
+      ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.event_name == 'pull_request' && 'staging' || 'prod') }}
+      AWS_SECRET_ACCESS_KEY: ${{secrets.EXEC_AWS_SECRET_ACCESS_KEY}}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: |
+          terraform init
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./packages/
+
+      - name: Terraform Workspace Select - ${{ env.ENVIRONMENT }}
+        run: |
+          terraform workspace select -or-create=true $ENVIRONMENT
+
+      - name: Deploying to ${{ env.ENVIRONMENT }}
+        id: deploy-step
+        run: |
+          TF_VAR_mail_password=${{secrets.MAIL_PASSWORD}} TF_VAR_api_key=${{secrets.TF_API_KEY}} TF_VAR_google_key=${{secrets.GOOGLE_KEY}} TF_VAR_aws_access_key_id=${{secrets.EXEC_AWS_ACCESS_KEY_ID}} TF_VAR_aws_secret_access_key=${{secrets.EXEC_AWS_SECRET_ACCESS_KEY}} terraform apply -auto-approve -replace 'aws_ecs_task_definition.jasss_testing_task'
+          echo "public_ip=$(terraform output -raw testing_public_ip)" >> $GITHUB_OUTPUT
+
+    outputs:
+      public_ip: ${{ steps.deploy-step.outputs.public_ip }}
+
+  e2e-tests:
+    needs: deploy
+
+    name: E2E Test New Deployment
+    uses: cseteaching-unsw-edu-au/JASSS_API/.github/workflows/e2e-tests.yml@main
+    with:
+      public_ip: ${{needs.deploy.outputs.public_ip}}

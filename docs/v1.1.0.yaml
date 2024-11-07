@@ -1,0 +1,796 @@
+openapi: 3.0.0
+servers:
+  - description: ☀SolarVoyant API
+    url: https://wl3fywkj02.execute-api.ap-southeast-2.amazonaws.com/prod
+
+info:
+  description: |
+    # DEPRECATED
+    *You can navigate between the different versions using the search box above. For example, to access v2.2.0, search for docs/v2.2.0.yaml*
+
+     **This document outlines the specifications behind the collection of microservices that make up JASSS' API.**
+
+     These microservices focus on fetching and analysing weather data for **any** suburb in **Sydney**.
+
+     As it stands, these microservices only handle forecast data for the next 7 days, but will be extended to return historical data for at least the path month soon.
+
+    ### Contact:
+    **Samuel Zheng** - [z5418112@ad.unsw.edu.au](mailto:z5418112@ad.unsw.edu.au) OR **samiam1** on Discord
+
+     ### Changelog:
+
+       **v1.1.0:**
+       - Added a route to fetch the list of suburbs in Sydney.
+       
+       **v1.0.0:**
+       - Initial release
+
+  version: 1.1.0
+  title: ☀️ SolarVoyant API ☀️
+
+tags:
+  - name: Suburb Fetching
+    description: Fetching suburb information
+  - name: Weather Fetching
+    description: Fetching weather information
+  - name: Weather Analytics
+    description: Analytics for weather information
+
+paths:
+  /data-retrieval/retrieve:
+    get:
+      summary: "Fetches up to 7 days of forecast data"
+      description: |
+        Fetches up to 7 days forecast of specified hourly and/or daily conditions for a given suburb, and returns it in the ADEGE Data Model format.
+      tags:
+        - Weather Fetching
+
+      parameters:
+        - name: suburb
+          in: query
+          required: true
+          schema:
+            type: string
+            example: Kensington
+          description: Suburb within Australia.
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD.
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD.
+
+        - name: attributes
+          in: query
+          required: false
+          schema:
+            type: string
+            example: temperature_2m, relative_humidity_2m
+          description: |
+            Comma-separated list of hourly and/or daily conditions to retrieve from S3 bucket.
+              **Available values**:
+              * temperature_2m
+              * relative_humidity_2m
+              * precipitation_probability
+              * precipitation
+              * cloud_cover
+              * wind_speed_10m
+              * wind_direction_10m
+              * uv_index
+              * shortwave_radiation
+              * daylight_duration
+              * sunshine_duration
+
+      responses:
+        "200":
+          description: Returns up to 7 days forecast of specified hourly and/or daily conditions for a given suburb.
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: "#/components/schemas/RetrievedADEGEResponse"
+              example:
+                WeatherEventDataExample:
+                  summary: An example of weather event data.
+                  value:
+                    data_source: "Weather API"
+                    dataset_type: "Weather/Climate data"
+                    dataset_id: "https://seng3011-student.s3.ap-southeast-2.amazonaws.com/SE3011-24-F14A-03/data.json"
+                    time_object:
+                      timestamp: "2023-02-12T07:52:02+11:00"
+                      timezone: "Australia/Sydney"
+                    events:
+                      - time_object:
+                          timestamp: "2023-02-12T07:52:02+11:00"
+                          duration: 1
+                          duration_unit: "hr"
+                        event_type: "hourly"
+                        attributes:
+                          location:
+                            suburb: "Kensington"
+                            latitude: -33.92578
+                            longitude: 150.9082
+                          units:
+                            time: "iso8601"
+                            temperature_2m: "°C"
+                            relative_humidity_2m: "%"
+                            precipitation_probability: "%"
+                            precipitation: "mm"
+                            cloud_cover: "%"
+                            wind_speed_10m: "km/h"
+                            uv_index: ""
+                            wind_direction_10m: "°"
+                            shortwave_radiation: "W/m²"
+                          temperature_2m: 30
+                          relative_humidity_2m: 20
+                          precipitation_probability: 10
+                          precipitation: 0
+                          cloud_cover: 30
+                          wind_speed_10m: 15
+                          wind_direction_10m: 270
+                          uv_index: 7
+                          shortwave_radiation: 282
+                      - time_object:
+                          timestamp: "2023-02-12T07:52:02+11:00"
+                          duration: 24
+                          duration_unit: "hr"
+                        event_type: "daily"
+                        attributes:
+                          location:
+                            suburb: "Kensington"
+                            latitude: -33.92578
+                            longitude: 150.9082
+                          units:
+                            time: "iso8601"
+                            daylight_duration: "s"
+                            sunshine_duration: "s"
+                          daylight_duration: 36000
+                          sunshine_duration: 32400
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-analytics/analyse:
+    get:
+      summary: "Generates analytics on weather data"
+      description: |
+        Generates analytics given a suburb, date range, and selected attributes. 
+        If no operations are specified, all available operations are selected by default.
+        The list of operations can be passed in as a comma-separated string in the query parameter 'aggregates'.
+      tags:
+        - Weather Analytics
+
+      parameters:
+        - name: suburb
+          in: query
+          required: true
+          schema:
+            type: string
+            example: Kensington
+          description: Suburb within Australia.
+
+        - name: startdate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD.
+
+        - name: enddate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD.
+
+        - name: attributes
+          in: query
+          required: false
+          schema:
+            type: string
+            example: temperature_2m, relative_humidity_2m
+          description: |
+            Comma-separated list of hourly and/or daily conditions to retrieve from S3 bucket.
+              **Available values**:
+              * temperature_2m
+              * relative_humidity_2m
+              * precipitation_probability
+              * precipitation
+              * cloud_cover
+              * wind_speed_10m
+              * wind_direction_10m
+              * uv_index
+              * shortwave_radiation
+              * daylight_duration
+              * sunshine_duration
+
+        - name: aggregates
+          in: query
+          required: false
+          schema:
+            type: string
+            example: mean, mode
+          description: |
+            Comma-separated list of operations to apply. Leave blank to return **all**.
+              **Available values**:
+              * mean
+              * mode
+              * median
+              * min
+              * max
+              * variance
+              * standard_deviation
+
+      responses:
+        "200":
+          description: Returns object containing analytics for the specified suburb within the selected timeframe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsADEGEResponse"
+              example:
+                data_source: "Weather API"
+                dataset_type: "Weather/Climate data"
+                dataset_id: "https://seng3011-student.s3.ap-southeast-2.amazonaws.com/SE3011-24-F14A-03/data.json"
+                time_object:
+                  timestamp: "2023-02-12T07:52:02+11:00"
+                  timezone: "Australia/Sydney"
+                events:
+                  - time_object:
+                      start_timestamp: "2023-01-12 07:52:02.921420"
+                      end_timestamp: "2023-02-12 07:52:02.921420"
+                    event_type: "analysis"
+                    attributes:
+                      location:
+                        suburb: "Kensington"
+                        latitude: -33.92578
+                        longitude: 150.9082
+                      units:
+                        time: "iso8601"
+                        temperature_2m: "°C"
+                        relative_humidity_2m: "%"
+                      analytics:
+                        mean:
+                          temperature_2m: 28
+                          relative_humidity_2m: 38
+                        min:
+                          temperature_2m: 25
+                          relative_humidity_2m: 30
+                        max:
+                          temperature_2m: 30
+                          relative_humidity_2m: 40
+                        median:
+                          temperature_2m: 27.5
+                          relative_humidity_2m: 37.5
+                        mode:
+                          temperature_2m: 27
+                          relative_humidity_2m: 35
+                        variation:
+                          temperature_2m: 6.25
+                          relative_humidity_2m: 10
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-collection/suburbs:
+    get:
+      summary: "Fetches a list of suburbs in Sydney."
+      description: |
+        Fetches and returns a list of suburbs in Sydney, including their longitudes and latitudes.
+      tags:
+        - Suburb Fetching
+
+      responses:
+        "200":
+          description: Successfully returns all Sydney suburbs with their longitude and latitudes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionSuburbResponse"
+              examples:
+
+  /data-collection/weather:
+    get:
+      summary: "Collect 7 days of forecast data"
+      description: |
+        Collects a 7 day forecast of each hourly and daily conditions for all suburbs in Sydney.
+          
+          **IMPORTANT:** This data is **NOT** returned in the ADEGE Data Model, and is returned in a proprietary format. **Additionally, this route is rate limited.** If you would like data in the ADEGE Data Format without rate limits, please use our **data retrieval route** instead.
+      tags:
+        - Weather Fetching
+
+      parameters:
+        - name: testPath
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Specify a specific file within our S3 bucket to read suburb data from. This is from the root of a specified folder within the SENG3011-Student folder. If you would like to test this route, use **suburbsData/sydney_suburbs_test.json** for a much smaller dataset. Leave blank for data for all suburbs.
+
+      responses:
+        "200":
+          description: Successfully returns a 7 day forecast of hourly and daily conditions for all locations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionResponse"
+              examples:
+                WeatherData:
+                  value:
+                    metadata:
+                      units:
+                        time: iso8601
+                        temperature_2m: °C
+                        relative_humidity_2m: "%"
+                        precipitation_probability: "%"
+                        precipitation: mm
+                        cloud_cover: "%"
+                        visibility: m
+                        windSpeed10M: km/h
+                        windDirection10M: "°"
+                        shortwaveRadiation: W/m²
+                        daylightDuration: s
+                        sunshineDuration: s
+                      timezone: Australia/Sydney
+                      timezoneAbbreviation: AEDT
+                    suburbsData:
+                      - name: Kensington
+                        latitude: -33.92578
+                        longitude: 150.9082
+                        elevation: 22
+                        hourlyConditions:
+                          time:
+                            - 2024-01-30T00:00
+                            - 2024-01-30T01:00
+                          temperature2M: []
+                          relativeHumidity2M: []
+                          apparentTemperature: []
+                          precipitationProbability: []
+                          precipitation: []
+                          weatherCode: []
+                          surfacePressure: []
+                          cloudCover: []
+                          visibility: []
+                          windSpeed10m: []
+                          windDirection10M: []
+                          uvIndex: []
+                          shortwaveRadiation: []
+                        dailyConditions:
+                          time:
+                            - 2024-01-30
+                            - 2024-01-31
+                          daylightDuration: []
+                          sunshineDuration: []
+        "404":
+          description: The specified testPath could not be found in S3.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    AnalyticsADEGEResponse:
+      type: object
+      properties:
+        data_source:
+          type: string
+          example: "Weather API"
+        dataset_type:
+          type: string
+          example: "Weather/Climate data"
+        dataset_id:
+          type: string
+          example: "https://seng3011-student.s3.ap-southeast-2.amazonaws.com/SE3011-24-F11A-03/data.json"
+        time_object:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              example: "2023-02-12 07:52:02.921420"
+            timezone:
+              type: string
+              example: "GMT+11"
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              time_object:
+                type: object
+                properties:
+                  startTimestamp:
+                    type: string
+                    example: "2023-01-12 07:52:02.921420"
+                  endTimestamp:
+                    type: string
+                    example: "2023-02-12 07:52:02.921420"
+              event_type:
+                type: string
+                example: "analysis"
+              attributes:
+                type: object
+                properties:
+                  location:
+                    type: object
+                    properties:
+                      suburb:
+                        type: string
+                        example: "Kensington"
+                      latitude:
+                        type: number
+                        example: -33.92578
+                      longitude:
+                        type: number
+                        example: 150.9082
+                  units:
+                    type: object
+                    properties:
+                      time:
+                        type: string
+                        example: "iso8601"
+                      temperature2M:
+                        type: string
+                        example: "°C"
+                      relativeHumidity2M:
+                        type: string
+                        example: "%"
+                  analytics:
+                    type: object
+                    properties:
+                      mean:
+                        type: object
+                        properties:
+                          temperature2M:
+                            type: number
+                            example: 28
+                          relativeHumidity2M:
+                            type: number
+                            example: 38
+                      min:
+                        type: object
+                        properties:
+                          temperature2M:
+                            type: number
+                            example: 25
+                          relativeHumidity2M:
+                            type: number
+                            example: 30
+                      max:
+                        type: object
+                        properties:
+                          temperature2M:
+                            type: number
+                            example: 30
+                          relativeHumidity2M:
+                            type: number
+                            example: 40
+                      median:
+                        type: object
+                        properties:
+                          temperature2M:
+                            type: number
+                            example: 27.5
+                          relativeHumidity2M:
+                            type: number
+                            example: 37.5
+                      mode:
+                        type: object
+                        properties:
+                          temperature2M:
+                            type: number
+                            example: 27
+                          relativeHumidity2M:
+                            type: number
+                            example: 35
+                      variation:
+                        type: object
+                        properties:
+                          temperature2M:
+                            type: number
+                            example: 6.25
+                          relativeHumidity2M:
+                            type: number
+                            example: 10
+
+    CollectionResponse:
+      type: object
+      properties:
+        metadata:
+          type: object
+          properties:
+            units:
+              type: object
+              properties:
+                time:
+                  type: string
+                  example: iso8601
+                temperature2M:
+                  type: string
+                  example: "°C"
+                relativeHumidity2M:
+                  type: string
+                  example: "%"
+                apparentTemperature:
+                  type: string
+                  example: "°C"
+                precipitationProbability:
+                  type: string
+                  example: "%"
+                precipitation:
+                  type: string
+                  example: "mm"
+                weatherCode:
+                  type: string
+                  example: "wmo code"
+                surfacePressure:
+                  type: string
+                  example: "hPa"
+                cloudCover:
+                  type: string
+                  example: "%"
+                visibility:
+                  type: string
+                  example: "m"
+                windSpeed10M:
+                  type: string
+                  example: "km/h"
+                windDirection10M:
+                  type: string
+                  example: "°"
+                shortwaveRadiation:
+                  type: string
+                  example: "W/m²"
+                daylightDuration:
+                  type: string
+                  example: "s"
+                sunshineDuration:
+                  type: string
+                  example: "s"
+            timezone:
+              type: string
+              example: Australia/Sydney
+            timezoneAbbreviation:
+              type: string
+              example: AEDT
+        suburbsData:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: Kensington
+              latitude:
+                type: number
+                example: -33.92578
+              longitude:
+                type: number
+                example: 150.9082
+              elevation:
+                type: number
+                example: 22
+              hourlyConditions:
+                type: object
+                properties:
+                  time:
+                    type: array
+                    items:
+                      type: string
+                      example: "2024-01-30T00:00"
+                  temperature2M:
+                    type: array
+                    items:
+                      type: number
+                  relativeHumidity2M:
+                    type: array
+                    items:
+                      type: number
+                  apparentTemperature:
+                    type: array
+                    items:
+                      type: number
+                  precipitationProbability:
+                    type: array
+                    items:
+                      type: number
+                  precipitation:
+                    type: array
+                    items:
+                      type: number
+                  weatherCode:
+                    type: array
+                    items:
+                      type: number
+                  surfacePressure:
+                    type: array
+                    items:
+                      type: number
+                  cloudCover:
+                    type: array
+                    items:
+                      type: number
+                  visibility:
+                    type: array
+                    items:
+                      type: number
+                  windSpeed10M:
+                    type: array
+                    items:
+                      type: number
+                  windDirection10M:
+                    type: array
+                    items:
+                      type: number
+                  uvIndex:
+                    type: array
+                    items:
+                      type: number
+                  shortwaveRadiation:
+                    type: array
+                    items:
+                      type: number
+              dailyConditions:
+                type: object
+                properties:
+                  time:
+                    type: array
+                    items:
+                      type: string
+                      example: "2024-01-30"
+                  daylightDuration:
+                    type: array
+                    items:
+                      type: number
+                  sunshineDuration:
+                    type: array
+                    items:
+                      type: number
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+
+    CollectionSuburbResponse:
+      type: array
+      items:
+        type: object
+        properties:
+          suburb:
+            type: string
+            example: "Kensington"
+          latitude:
+            type: number
+            example: 34.012
+          longitude:
+            type: number
+            example: 34.012
+
+    RetrievedADEGEResponse:
+      type: object
+      properties:
+        data_source:
+          type: string
+          example: Weather API
+        dataset_type:
+          type: string
+          example: Weather/Climate data
+        dataset_id:
+          type: string
+          example: https://seng3011-student.s3.ap-southeast-2.amazonaws.com/SE3011-24-F11A-03/data.json
+        time_object:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+              example: 2023-02-12T07:52:02.921420Z
+            timezone:
+              type: string
+              example: GMT+11
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              time_object:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: 2023-02-12T07:52:02.921420Z
+                  duration:
+                    type: integer
+                    example: 4
+                  duration_unit:
+                    type: string
+                    example: hr
+              event_type:
+                type: string
+                example: real time hourly
+              attributes:
+                type: object
+                properties:
+                  location:
+                    type: object
+                    properties:
+                      suburb:
+                        type: string
+                        example: Kensington
+                      latitude:
+                        type: number
+                        format: float
+                        example: -33.92578
+                      longitude:
+                        type: number
+                        format: float
+                        example: 150.9082
+                  units:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  temperature2M:
+                    type: integer
+                    example: 30
+                  relativeHumidity2M:
+                    type: integer
+                    example: 20
+                  apparentTemperature:
+                    type: integer
+                    example: 33
+                  precipitationProbability:
+                    type: integer
+                    example: 10
+                  precipitation:
+                    type: integer
+                    example: 0
+                  weatherCode:
+                    type: string
+                    example: overcast
+                  surfacePressure:
+                    type: integer
+                    example: 20
+                  cloudCover:
+                    type: integer
+                    example: 30
+                  visibility:
+                    type: integer
+                    example: 90
+                  windSpeed10m:
+                    type: integer
+                    example: 60
+                  windDirection10M:
+                    type: integer
+                    example: 80
+                  uvIndex:
+                    type: integer
+                    example: 7
+                  shortwaveRadiation:
+                    type: integer
+                    example: 282

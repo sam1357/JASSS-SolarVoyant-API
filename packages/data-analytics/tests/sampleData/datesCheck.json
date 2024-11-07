@@ -1,0 +1,86 @@
+{
+  "data_source": "Weather API",
+  "dataset_type": "Weather/Climate Data",
+  "dataset_id": "https://s3.console.aws.amazon.com/s3/buckets/seng3011-student?region=ap-southeast-2&bucketType=general&prefix=SE3011-24-F14A-03/&showversions=false",
+  "time_object": {
+    "timestamp": "2024-03-16T22:13:51+11:00",
+    "timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "time_object": {
+        "timestamp": "2024-03-16T01:00:00+11:00",
+        "duration": 1,
+        "duration_unit": "hr",
+        "timezone": "Australia/Sydney"
+      },
+      "event_type": "hourly",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.875,
+          "longitude": 150.875
+        },
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "°C",
+          "relative_humidity_2m": "%",
+          "cloud_cover": "%"
+        },
+        "temperature_2m": 15.9,
+        "relative_humidity_2m": 83,
+        "cloud_cover": 36,
+        "shortwave_radiation": 0
+      }
+    },
+    {
+      "time_object": {
+        "timestamp": "2024-03-16T00:00:00+11:00",
+        "duration": 1,
+        "duration_unit": "hr",
+        "timezone": "Australia/Sydney"
+      },
+      "event_type": "hourly",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.875,
+          "longitude": 150.875
+        },
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "°C",
+          "relative_humidity_2m": "%",
+          "cloud_cover": "%"
+        },
+        "temperature_2m": 15.9,
+        "relative_humidity_2m": 83,
+        "cloud_cover": 36,
+        "shortwave_radiation": 0
+      }
+    },
+    {
+      "time_object": {
+        "timestamp": "2024-03-16T00:00:00+11:00",
+        "duration": 24,
+        "duration_unit": "hr",
+        "timezone": "Australia/Sydney"
+      },
+      "event_type": "daily",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.875,
+          "longitude": 150.875
+        },
+        "units": {
+          "time": "iso8601",
+          "daylight_duration": "s",
+          "sunshine_duration": "s"
+        },
+        "daylight_duration": 44207.44,
+        "sunshine_duration": 8584.58
+      }
+    }
+  ]
+}

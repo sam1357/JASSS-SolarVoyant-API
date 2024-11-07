@@ -1,0 +1,10 @@
+{
+  "data_source": "Weather API",
+  "dataset_type": "Weather/Climate data",
+  "dataset_id": "insert_s3_link",
+  "time_object": {
+    "timestamp": "2023-02-12T07:52:02+11:00",
+    "timezone": "Australia/Sydney"
+  },
+  "events": []
+}

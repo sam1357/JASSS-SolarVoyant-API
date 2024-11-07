@@ -1,0 +1,996 @@
+openapi: 3.0.0
+servers:
+  - description: ☀SolarVoyant API
+    url: https://wl3fywkj02.execute-api.ap-southeast-2.amazonaws.com/prod
+
+info:
+  description: |
+    *You can navigate between the different versions using the search box above. For example, to access v2.2.0, search for docs/v2.2.0.yaml*
+
+     **This document outlines the specifications behind the collection of microservices that make up JASSS' API.**
+
+     These microservices focus on fetching and analysing weather data for **any** suburb in **Sydney**.
+
+     You can fetch up to 7 days of forecast data, or alternatively historical weather data dating back to the 25th of February 2024.
+
+      ### Contact:
+      **Samuel Zheng** - [z5418112@ad.unsw.edu.au](mailto:z5418112@ad.unsw.edu.au) OR **samiam1** on Discord
+      
+     ### Changelog:
+     
+       **v3.0.0**
+       - Modified data collection behaviour to take in an `s3Key`. Data collection **no longer** returns the data via the API, but instead writes it to S3 to the s3Key provided.
+       - New weather conditions have been added:
+         - Surface Pressure
+         - Apparent Temperature
+         - Visibility
+         - Weather Code ([WMO Code](https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM))
+         - Wind Gusts
+       - A new route on retrieval, which will return a mapping between the weather code and the description of the weather that it describes. This also provides some links to images for the corresponding weather condition.
+       - Minor bug fixes with dates etc. on retrieval and analytics.
+       
+       **v2.2.0**
+       - Added new routes for fetching historical weather data.
+       - Modified behaviour of retrieve and analyse routes to return an error when both suburb and address are provided
+
+       **v2.1.0**
+       - Added a new route to fetch possible suburbs for a given address.
+       
+       **v2.0.0:**
+       - Added a new route in data analytics to allow for individual selections of aggregate operations to apply on each condition
+       - Modified existing route in data analytics to return all aggregations for all weather conditions 
+       - Added new standard deviation and sum operations to analytics
+       - Changed return format of analytics
+       - Renamed operation variation to variance
+
+       **v1.1.0:**
+       - Added a route to fetch the list of suburbs in Sydney.
+       
+       **v1.0.0:**
+       - Initial release
+
+  version: 3.0.0
+  title: ☀️ SolarVoyant API ☀️
+
+tags:
+  - name: Suburb Fetching
+    description: Fetching suburb information
+  - name: Weather Fetching
+    description: Fetching weather information
+  - name: Weather Analytics
+    description: Analytics for weather information
+
+paths:
+  /data-retrieval/retrieve:
+    get:
+      summary: "Fetches up to 7 days of forecast data"
+      description: |
+        Fetches up to 7 days forecast of specified hourly and/or daily conditions for a given suburb, and returns it in the ADEGE Data Model format.
+      tags:
+        - Weather Fetching
+
+      parameters:
+        - name: suburb
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Kensington
+          description: Provide either a suburb or address in Sydney.
+
+        - name: address
+          in: query
+          required: false
+          schema:
+            type: string
+            example: The Star 20-80 Pyrmont St
+          description: Provide either a suburb or address in Sydney.
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD. Must be within the next 7 days.
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD. Must be within the next 7 days.
+
+        - name: attributes
+          in: query
+          required: false
+          schema:
+            type: string
+            example: temperature_2m, relative_humidity_2m
+          description: |
+            Comma-separated list of hourly and/or daily conditions to retrieve from S3 bucket. Do be aware that sunshine_duration and daylight_duration are returned as **daily** conditions, so they do not appear in the same **hourly** event objects as the other conditions.
+              **Available values**:
+              * temperature_2m
+              * relative_humidity_2m
+              * precipitation_probability
+              * precipitation
+              * cloud_cover
+              * wind_speed_10m
+              * wind_direction_10m
+              * uv_index
+              * shortwave_radiation
+              * weather_code (use the `retrieve-wmo` route to get the descriptions for the numbers returned)
+              * visibility
+              * apparent_temperature
+              * surface_pressure
+              * wind_gusts_10m
+              * daylight_duration
+              * sunshine_duration
+
+      responses:
+        "200":
+          description: Returns up to 7 days forecast of specified hourly and/or daily conditions for a given suburb.
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: "#/components/schemas/RetrievedADEGEResponse"
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-retrieval/retrieve-history:
+    get:
+      summary: "Fetches historical weather data up to a specific cutoff date. "
+      description: |
+        Fetches historical weather data for a given suburb per day, and returns it in the ADEGE Data Model format. Data can be fetched up to the 5th March 2024.
+      tags:
+        - Weather Fetching
+
+      parameters:
+        - name: suburb
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Kensington
+          description: Provide either a suburb or address in Sydney.
+
+        - name: address
+          in: query
+          required: false
+          schema:
+            type: string
+            example: The Star 20-80 Pyrmont St
+          description: Provide either a suburb or address in Sydney.
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD. Must be after 5th March 2024 and before today.
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD. Must be after 5th March 2024 and before today.
+
+        - name: attributes
+          in: query
+          required: false
+          schema:
+            type: string
+            example: temperature_2m, relative_humidity_2m
+          description: |
+            Comma-separated list of conditions to retrieve from S3 bucket. ALL conditions are returned as **daily** events, so historical events are one event per day.
+              **Available values**:
+              * temperature_2m
+              * relative_humidity_2m
+              * precipitation_probability
+              * precipitation
+              * cloud_cover
+              * wind_speed_10m
+              * wind_direction_10m
+              * uv_index
+              * shortwave_radiation
+              * weather_code (use the `retrieve-wmo` route to get the descriptions for the numbers returned)
+              * visibility
+              * apparent_temperature
+              * surface_pressure
+              * wind_gusts_10m
+              * daylight_duration
+              * sunshine_duration
+
+      responses:
+        "200":
+          description: Returns historical weather data in daily occurrences for a given suburb.
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: "#/components/schemas/RetrievedADEGEResponse"
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-retrieval/retrieve-wmo:
+    get:
+      summary: "Fetches and returns a mapping of WMO codes to their descriptions."
+      description: |
+        Fetches and returns a mapping of WMO codes to their descriptions. This includes day and night descriptions, as well as URLs to images for their respective weather conditions.
+      tags:
+        - Weather Fetching
+
+      responses:
+        "200":
+          description: Returns WMO code mapping.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WMOCodeMappingResponse"
+
+  /data-analytics/analyse:
+    get:
+      summary: "Generates analytics on forecast weather data - returns all"
+      description: |
+        Generates analytics given a suburb and date range within the next 7 days, and returns all requested weather conditions (if none provided, it will return all) with all the possible aggregation operations. You can find these operations in the **analyse-selective** route.
+      tags:
+        - Weather Analytics
+
+      parameters:
+        - name: suburb
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Kensington
+          description: Provide either a suburb or address in Sydney.
+
+        - name: address
+          in: query
+          required: false
+          schema:
+            type: string
+            example: The Star 20-80 Pyrmont St
+          description: Provide either a suburb or address in Sydney.
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD. Must be within the next 7 days.
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD. Must be within the next 7 days.
+
+        - name: attributes
+          in: query
+          required: false
+          schema:
+            type: string
+            example: temperature_2m, relative_humidity_2m
+          description: |
+            Comma-separated list of conditions to provide analaytics for. Leave blank to return all.
+              **Available values**:
+              * temperature_2m
+              * relative_humidity_2m
+              * precipitation_probability
+              * precipitation
+              * cloud_cover
+              * wind_speed_10m
+              * wind_direction_10m
+              * uv_index
+              * shortwave_radiation
+              * weather_code (use the `retrieve-wmo` route to get the descriptions for the numbers returned)
+              * visibility
+              * apparent_temperature
+              * surface_pressure
+              * wind_gusts_10m
+              * daylight_duration
+              * sunshine_duration
+
+      responses:
+        "200":
+          description: Returns object containing analytics for the specified suburb within the selected timeframe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-analytics/analyse-selective:
+    post:
+      summary: "Generates analytics on forecast weather data selectively"
+      description: |
+        Generates analytics on forecast weather data within the next 7 days, with the option to select specific weather conditions to return with specific aggregation operations applied to it.
+      tags:
+        - Weather Analytics
+
+      parameters:
+        - name: suburb
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Kensington
+          description: Suburb within Australia.
+
+        - name: address
+          in: query
+          required: false
+          schema:
+            type: string
+            example: The Star 20-80 Pyrmont St
+          description: Provide either a suburb or address in Sydney.
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD. Must be within the next 7 days.
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD. Must be within the next 7 days.
+
+      requestBody:
+        description: |
+          Specify the conditions that you wish to fetch, alongside the operations you wish to apply to each condition.
+
+            **Available weather conditions**:
+            * temperature_2m
+            * relative_humidity_2m
+            * precipitation_probability
+            * precipitation
+            * cloud_cover
+            * wind_speed_10m
+            * wind_direction_10m
+            * uv_index
+            * shortwave_radiation
+            * weather_code (use the `retrieve-wmo` route to get the descriptions for the numbers returned)
+            * visibility
+            * apparent_temperature
+            * surface_pressure
+            * wind_gusts_10m
+            * daylight_duration
+            * sunshine_duration
+
+            **Available values for operations**:
+            * mean
+            * mode
+            * median
+            * min
+            * max
+            * variance
+            * standard_deviation
+            * sum
+
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyseSelectiveRequestBody"
+
+      responses:
+        "200":
+          description: Returns object containing analytics for the specified suburb within the selected timeframe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-analytics/analyse-history:
+    get:
+      summary: "Generates analytics on historical weather data - returns all"
+      description: |
+        Generates analytics given a suburb and historical date range (dating back to **5th March 2024**), and returns all requested weather conditions (defaults to all if none provided) with all the possible aggregation operations. You can find these operations in the **analyse-selective** route.
+      tags:
+        - Weather Analytics
+
+      parameters:
+        - name: suburb
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Kensington
+          description: Provide either a suburb or address in Sydney.
+
+        - name: address
+          in: query
+          required: false
+          schema:
+            type: string
+            example: The Star 20-80 Pyrmont St
+          description: Provide either a suburb or address in Sydney.
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD. Must be after the 5th March 2024 and before today.
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD. Must be after the 5th March 2024 and before today.
+
+        - name: attributes
+          in: query
+          required: false
+          schema:
+            type: string
+            example: temperature_2m, relative_humidity_2m
+          description: |
+            Comma-separated list of conditions to provide analaytics for. Leave blank to return all.
+              **Available values**:
+              * temperature_2m
+              * relative_humidity_2m
+              * precipitation_probability
+              * precipitation
+              * cloud_cover
+              * wind_speed_10m
+              * wind_direction_10m
+              * uv_index
+              * shortwave_radiation
+              * weather_code (use the `retrieve-wmo` route to get the descriptions for the numbers returned)
+              * visibility
+              * apparent_temperature
+              * surface_pressure
+              * wind_gusts_10m
+              * daylight_duration
+              * sunshine_duration
+
+      responses:
+        "200":
+          description: Returns object containing analytics for the specified suburb within the selected timeframe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-analytics/analyse-selective-historical:
+    post:
+      summary: "Generates analytics on historical weather data selectively"
+      description: |
+        Generates analytics on historical weather data (dating back to **5th March 2024**), with the option to select specific weather conditions to return with specific aggregation operations applied to it.
+      tags:
+        - Weather Analytics
+
+      parameters:
+        - name: suburb
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Kensington
+          description: Suburb within Australia.
+
+        - name: address
+          in: query
+          required: false
+          schema:
+            type: string
+            example: The Star 20-80 Pyrmont St
+          description: Provide either a suburb or address in Sydney.
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-14
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Starting date in format YYYY-MM-DD. Must be after the 5th March 2024 and before today.
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            example: 2024-03-16
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Ending date in format YYYY-MM-DD. Must be after the 5th March 2024 and before today.
+
+      requestBody:
+        description: |
+          Specify the conditions that you wish to fetch, alongside the operations you wish to apply to each condition.
+
+            **Available weather conditions**:
+            * temperature_2m
+            * relative_humidity_2m
+            * precipitation_probability
+            * precipitation
+            * cloud_cover
+            * wind_speed_10m
+            * wind_direction_10m
+            * uv_index
+            * shortwave_radiation
+            * daylight_duration
+            * sunshine_duration
+
+            **Available values for operations**:
+            * mean
+            * mode
+            * median
+            * min
+            * max
+            * variance
+            * standard_deviation
+            * sum
+
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyseSelectiveRequestBody"
+
+      responses:
+        "200":
+          description: Returns object containing analytics for the specified suburb within the selected timeframe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+
+        "400":
+          description: Bad input, e.g. missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-collection/suburbs:
+    get:
+      summary: "Fetches a list of suburbs in Sydney."
+      description: |
+        Fetches and returns a list of suburbs in Sydney, including their longitudes and latitudes.
+      tags:
+        - Suburb Fetching
+
+      responses:
+        "200":
+          description: Successfully returns all Sydney suburbs with their longitude and latitudes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionSuburbResponse"
+
+  /address-to-suburb/get-suburb:
+    get:
+      summary: "Get possible suburbs for a given address."
+      description: |
+        Given an address, fetch possible suburbs for that given address. Only returns suburbs in Sydney.
+      tags:
+        - Suburb Fetching
+
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+            example: The Star 20-80 Pyrmont St
+          description: Address within Sydney
+
+      responses:
+        "200":
+          description: Successfully returns all possible Sydney suburbs for a given address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddresstoSuburbResponse"
+        "400":
+          description: Bad input, either missing address or address given was not in Sydney
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /data-collection/weather:
+    get:
+      summary: "Collect 7 days of forecast data"
+      description: |
+        Collects a 7 day forecast of each hourly and daily conditions for all suburbs in Sydney and writes it to a specified key in S3.
+          
+          **IMPORTANT:** This data is **NOT** returned in the ADEGE Data Model, and is returned in a proprietary format. **Additionally, this route is rate limited.** If you would like data in the ADEGE Data Format without rate limits, please use our **data retrieval route** instead.
+          
+          Also note that this route writes data to S3. It does not return data via the API.
+      tags:
+        - Weather Fetching
+
+      parameters:
+        - name: testPath
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Specify a specific file within our S3 bucket to read suburb data from. This is from the root of a specified folder within the SENG3011-Student folder. If you would like to test this route, use **SE3011-24-F14A-03/suburbsData/sydney_suburbs_test.json** for a much smaller dataset. Leave blank for data for all suburbs.
+        - name: s3Key
+          required: true
+          in: query
+          schema:
+            type: string
+          description: Specify a specific path that you wish to write to in the S3 bucket (within the seng3011-student bucket).
+
+      responses:
+        "200":
+          description: Successfully returns a 7 day forecast of hourly and daily conditions for all locations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionResponse"
+
+        "400":
+          description: Missing S3 key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+        "404":
+          description: The specified testPath could not be found in S3.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    AnalyticsResponse:
+      type: object
+      properties:
+        time_object:
+          type: object
+          properties:
+            start_timestamp:
+              type: string
+              example: "2024-03-22T00:00:00+11:00"
+            end_timestamp:
+              type: string
+              example: "2024-03-23T23:00:00+11:00"
+            timezone:
+              type: string
+              example: "Australia/Sydney"
+            units:
+              type: string
+              example: "iso8601"
+        location:
+          type: object
+          properties:
+            suburb:
+              type: string
+              example: "Kensington"
+            latitude:
+              type: number
+              example: -33.92578
+            longitude:
+              type: number
+              example: 150.9082
+        units:
+          type: object
+          properties:
+            temperature_2m:
+              type: string
+              example: "°C"
+            relative_humidity_2m:
+              type: string
+              example: "%"
+            precipitation_probability:
+              type: string
+              example: "%"
+            precipitation:
+              type: string
+              example: "mm"
+            cloud_cover:
+              type: string
+              example: "%"
+            wind_speed_10m:
+              type: string
+              example: "km/h"
+            wind_direction_10m:
+              type: string
+              example: "°"
+            uv_index:
+              type: string
+              example: ""
+            shortwave_radiation:
+              type: string
+              example: "W/m²"
+            daylight_duration:
+              type: string
+              example: "s"
+            sunshine_duration:
+              type: string
+              example: "s"
+        analytics:
+          type: object
+          properties:
+            temperature_2m:
+              $ref: "#/components/schemas/AnalyticsObject"
+            precipitation_probability:
+              $ref: "#/components/schemas/AnalyticsObject"
+            precipitation:
+              $ref: "#/components/schemas/AnalyticsObject"
+            cloud_cover:
+              $ref: "#/components/schemas/AnalyticsObject"
+            wind_speed_10m:
+              $ref: "#/components/schemas/AnalyticsObject"
+            wind_direction_10m:
+              $ref: "#/components/schemas/AnalyticsObject"
+            uv_index:
+              $ref: "#/components/schemas/AnalyticsObject"
+            shortwave_radiation:
+              $ref: "#/components/schemas/AnalyticsObject"
+            daylight_duration:
+              $ref: "#/components/schemas/AnalyticsObject"
+            sunshine_duration:
+              $ref: "#/components/schemas/AnalyticsObject"
+
+    AnalyticsObject:
+      type: object
+      properties:
+        sum:
+          type: number
+          example: 42
+        mean:
+          type: number
+          example: 42
+        mode:
+          type: array
+          items:
+            type: number
+            example: 42
+        min:
+          type: number
+          example: 42
+        max:
+          type: number
+          example: 42
+        median:
+          type: number
+          example: 42
+        variance:
+          type: number
+          example: 42
+        standard_deviation:
+          type: number
+          example: 42
+
+    CollectionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Successfully wrote to S3.
+
+    AnalyseSelectiveRequestBody:
+      type: object
+      properties:
+        query:
+          type: object
+          properties:
+            temperature_2m:
+              type: string
+              example: mean
+            relative_humidity_2m:
+              type: string
+              example: mean
+            precipitation:
+              type: string
+              example: sum
+            precipitation_probability:
+              type: string
+              example: mode
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+
+    CollectionSuburbResponse:
+      type: array
+      items:
+        type: object
+        properties:
+          suburb:
+            type: string
+            example: "Kensington"
+          latitude:
+            type: number
+            example: 34.012
+          longitude:
+            type: number
+            example: 34.012
+
+    WMOCodeMappingResponse:
+      type: object
+      properties:
+        0:
+          type: object
+          properties:
+            day:
+              type: object
+              properties:
+                description:
+                  type: string
+                  example: Sunny
+                image:
+                  type: string
+                  example: url.com
+            night:
+              type: object
+              properties:
+                description:
+                  type: string
+                  example: Clear
+                image:
+                  type: string
+                  example: url.com
+
+    AddresstoSuburbResponse:
+      type: object
+      properties:
+        suburbs:
+          type: array
+          items:
+            type: string
+            example: Pyrmont
+
+    RetrievedADEGEResponse:
+      type: object
+      properties:
+        data_source:
+          type: string
+          example: Weather API
+        dataset_type:
+          type: string
+          example: Weather/Climate data
+        dataset_id:
+          type: string
+          example: https://seng3011-student.s3.ap-southeast-2.amazonaws.com/SE3011-24-F14A-03/
+        time_object:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+              example: 2023-02-12T07:52:00+11:00
+            timezone:
+              type: string
+              example: "Australian/Sydney"
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              time_object:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: 2023-02-12T07:52:00+11:00
+                  duration:
+                    type: integer
+                    example: 4
+                  duration_unit:
+                    type: string
+                    example: hr
+                  timezone:
+                    type: string
+                    example: "Australian/Sydney"
+              event_type:
+                type: string
+                example: hourly
+              attributes:
+                type: object
+                properties:
+                  location:
+                    type: object
+                    properties:
+                      suburb:
+                        type: string
+                        example: Kensington
+                      latitude:
+                        type: number
+                        format: float
+                        example: -33.92578
+                      longitude:
+                        type: number
+                        format: float
+                        example: 150.9082
+                  units:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  temperature_2m:
+                    type: integer
+                    example: 30
+                  relative_humidity_2m:
+                    type: integer
+                    example: 20
+                  precipitation_probability:
+                    type: integer
+                    example: 10
+                  precipitation:
+                    type: integer
+                    example: 0
+                  cloud_cover:
+                    type: integer
+                    example: 30
+                  wind_speed_10m:
+                    type: integer
+                    example: 60
+                  wind_direction_10m:
+                    type: integer
+                    example: 80
+                  uv_index:
+                    type: integer
+                    example: 7
+                  shortwave_radiation:
+                    type: integer
+                    example: 282

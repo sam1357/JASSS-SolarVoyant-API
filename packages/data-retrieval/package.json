@@ -1,0 +1,66 @@
+{
+  "name": "jasss-data-retrieval",
+  "version": "3.0.0",
+  "description": "This microservice is responsible for acting as an interface between the client and the data stored in the s3 bucket",
+  "main": "server.ts",
+  "scripts": {
+    "test": "export POWERTOOLS_DEV=true && jest --silent",
+    "test-verbose": "export POWERTOOLS_DEV=true && jest",
+    "build": "rimraf dist && esbuild ./src/ --bundle --minify --platform=node --outfile=dist/index.js && cp -r ./src/resources ./dist/resources",
+    "lint": "pnpm exec eslint src/*.ts src/**/*.ts",
+    "lint-fix": "pnpm exec eslint src/*.ts src/**/*.ts --fix",
+    "prettier": "pnpm exec prettier -c src",
+    "prettier-fix": "pnpm exec prettier -w src"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.535.0",
+    "@aws-sdk/client-s3": "^3.525.0",
+    "@aws-sdk/lib-dynamodb": "^3.535.0",
+    "@smithy/util-stream": "^2.2.0",
+    "@types/numeric": "^1.2.6",
+    "aws-sdk": "^2.1569.0",
+    "date-fns-tz": "^2.0.1",
+    "dotenv": "^16.4.5",
+    "numeric": "^1.2.6"
+  },
+  "devDependencies": {
+    "@aws-lambda-powertools/logger": "^2.0.3",
+    "@aws-sdk/client-lambda": "^3.535.0",
+    "@aws-sdk/credential-providers": "^3.535.0",
+    "@jest/globals": "^29.7.0",
+    "@types/aws-lambda": "^8.10.136",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.22",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "aws-sdk-client-mock": "^3.0.1",
+    "esbuild": "^0.20.2",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.5",
+    "rimraf": "^5.0.5",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "collectCoverage": true,
+    "coverageReporters": [
+      "text-summary",
+      "html"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "functions": 85,
+        "lines": 85,
+        "statements": 85
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "data_source": "Weather API",
+  "dataset_type": "Weather/Climate data",
+  "dataset_id": "insert_s3_link",
+  "time_object": {
+    "timestamp": "2023-02-12T07:52:02+11:00",
+    "timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "time_object": {
+        "timestamp": "2023-02-12T07:52:02+11:00",
+        "duration": 24,
+        "duration_unit": "hr"
+      },
+      "event_type": "historical",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.92578,
+          "longitude": 150.9082
+        },
+        "units": {
+          "time": "iso8601"
+        }
+      }
+    }
+  ]
+}

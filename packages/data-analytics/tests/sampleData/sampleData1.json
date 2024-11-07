@@ -1,0 +1,104 @@
+{
+  "data_source": "Weather API",
+  "dataset_type": "Weather/Climate data",
+  "dataset_id": "insert_s3_link",
+  "time_object": {
+    "timestamp": "2023-02-12T07:52:02+11:00",
+    "timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "time_object": {
+        "timestamp": "2023-02-12T07:52:02+11:00",
+        "duration": 4,
+        "duration_unit": "hr",
+        "timezone": "Australia/Sydney"
+      },
+      "event_type": "hourly",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.92578,
+          "longitude": 150.9082
+        },
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "°C",
+          "relative_humidity_2m": "%",
+          "cloud_cover": "%"
+        },
+        "temperature_2m": 30,
+        "relative_humidity_2m": 40,
+        "cloud_cover": 30
+      }
+    },
+    {
+      "time_object": {
+        "timestamp": "2023-02-12T07:52:02+11:00",
+        "duration": 24,
+        "duration_unit": "hr"
+      },
+      "event_type": "daily",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.92578,
+          "longitude": 150.9082
+        },
+        "units": {
+          "time": "iso8601",
+          "daylight_duration": "s",
+          "sunshine_duration": "s"
+        },
+        "daylight_duration": 36000,
+        "sunshine_duration": 32400
+      }
+    },
+    {
+      "time_object": {
+        "timestamp": "2023-02-11T07:52:02+11:00",
+        "duration": 4,
+        "duration_unit": "hr"
+      },
+      "event_type": "hourly",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.92578,
+          "longitude": 150.9082
+        },
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "°C",
+          "relative_humidity_2m": "%",
+          "cloud_cover": "%"
+        },
+        "temperature_2m": 25,
+        "relative_humidity_2m": 30,
+        "cloud_cover": 50
+      }
+    },
+    {
+      "time_object": {
+        "timestamp": "2023-02-12T07:52:02+11:00",
+        "duration": 24,
+        "duration_unit": "hr"
+      },
+      "event_type": "daily",
+      "attributes": {
+        "location": {
+          "suburb": "Kensington",
+          "latitude": -33.92578,
+          "longitude": 150.9082
+        },
+        "units": {
+          "time": "iso8601",
+          "daylight_duration": "s",
+          "sunshine_duration": "s"
+        },
+        "daylight_duration": 34000,
+        "sunshine_duration": 31000
+      }
+    }
+  ]
+}

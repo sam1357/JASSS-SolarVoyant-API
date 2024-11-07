@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "units": {
+      "time": "iso8601",
+      "temperature_2m": "°C",
+      "relative_humidity_2m": "%",
+      "precipitation_probability": "%",
+      "precipitation": "mm",
+      "cloud_cover": "%",
+      "weather_code": "wmo code",
+      "apparent_temperature": "°C",
+      "surface_pressure": "hPa",
+      "wind_gusts_10m": "km/h",
+      "visibility": "m",
+      "wind_speed_10m": "km/h",
+      "wind_direction_10m": "°",
+      "uv_index": "",
+      "shortwave_radiation": "W/m²",
+      "daylight_duration": "s",
+      "sunshine_duration": "s"
+    },
+    "timezone": "Australia/Sydney",
+    "timezone_abbreviation": "AEDT"
+  },
+  "suburbs_data": [
+    {
+      "suburb": "Abbotsbury",
+      "latitude": -33.875,
+      "longitude": 150.875,
+      "elevation": 63,
+      "hourly": {
+        "time": ["2024-03-10T00:00", "2024-03-10T01:00"],
+        "temperature_2m": [20.6, 20.2],
+        "relative_humidity_2m": [86, 88],
+        "precipitation_probability": [0, 0],
+        "precipitation": [0, 0],
+        "cloud_cover": [48, 57],
+        "wind_speed_10m": [2.4, 1.8],
+        "wind_direction_10m": [297, 307],
+        "uv_index": [0, 0],
+        "shortwave_radiation": [0, 0],
+        "apparent_temperature": [0, 0],
+        "weather_code": [0, 0],
+        "surface_pressure": [0, 0],
+        "wind_gusts_10m": [0, 0],
+        "visibility": [0, 0]
+      },
+      "daily": {
+        "time": ["2024-03-10T00:00", "2024-03-11T00:00"],
+        "daylight_duration": [44965.24, 44838.45],
+        "sunshine_duration": [42053.48, 40637.9]
+      }
+    },
+    {
+      "suburb": "Abbotsford",
+      "latitude": -33.875,
+      "longitude": 151.125,
+      "elevation": 22,
+      "hourly": {
+        "time": ["2024-03-10T00:00", "2024-03-10T01:00"],
+        "temperature_2m": [20.6, 20.2],
+        "relative_humidity_2m": [86, 88],
+        "precipitation_probability": [0, 0],
+        "precipitation": [0, 0],
+        "cloud_cover": [48, 57],
+        "wind_speed_10m": [2.4, 1.8],
+        "wind_direction_10m": [297, 307],
+        "uv_index": [0, 0],
+        "shortwave_radiation": [0, 0],
+        "apparent_temperature": [0, 0],
+        "weather_code": [0, 0],
+        "surface_pressure": [0, 0],
+        "wind_gusts_10m": [0, 0],
+        "visibility": [0, 0]
+      },
+      "daily": {
+        "time": ["2024-03-10T00:00", "2024-03-11T00:00"],
+        "daylight_duration": [44965.24, 44838.45],
+        "sunshine_duration": [42053.48, 41928.12]
+      }
+    }
+  ]
+}

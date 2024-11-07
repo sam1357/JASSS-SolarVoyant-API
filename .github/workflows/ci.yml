@@ -1,0 +1,69 @@
+name: Node.js CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - data-analytics
+          - data-collection
+          - data-retrieval
+          - data-preprocessing
+          - append-history
+          - suburb-finder
+          - data-fetch-historical
+          - user-data
+          - notification
+          - calculator
+    env:
+      API_BASE_URL: ${{vars.API_BASE_URL}}
+      BUCKET: ${{vars.BUCKET}}
+      DEFAULT_REGION: ${{vars.DEFAULT_REGION}}
+      S3_ENDPOINT: ${{vars.S3_ENDPOINT}}
+      AWS_ACCESS_KEY_ID: ${{secrets.EXEC_AWS_ACCESS_KEY_ID}}
+      AWS_SECRET_ACCESS_KEY: ${{secrets.EXEC_AWS_SECRET_ACCESS_KEY}}
+      GOOGLE_API_KEY: ${{secrets.GOOGLE_KEY}}
+      STAGING_ENV: ${{vars.STAGING_ENV}}
+      TZ: ${{vars.TZ}}
+      MAIL_USERNAME: ${{secrets.MAIL_USERNAME}}
+      MAIL_PASSWORD: ${{secrets.MAIL_PASSWORD}}
+
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm i pnpm@latest -g
+
+      - name: Install modules
+        run: pnpm i --no-frozen-lockfile
+        working-directory: packages/${{ matrix.package }}
+
+      - name: Lint
+        run: pnpm lint
+        working-directory: packages/${{ matrix.package }}
+
+      - name: Prettier
+        run: pnpm prettier
+        working-directory: packages/${{ matrix.package }}
+
+      - name: Jest
+        run: pnpm jest
+        working-directory: packages/${{ matrix.package }}
+
+      - name: Build
+        run: pnpm build
+        working-directory: packages/${{ matrix.package }}
